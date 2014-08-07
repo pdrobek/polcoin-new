@@ -28,7 +28,7 @@ Current main version: 1.4.0 (code name: new epoch)
 
 You can find more information about Polcoin on [polcoin.one.pl](http://polcoin.one.pl/).
 
-If you have any trouble write on [Official forum](http://forum.polcoin.eu/) or [Polmine forum](https://forum.polmine.pl/index.php?topic=4204).
+If you have any trouble write on [Polmine forum](https://forum.polmine.pl/index.php?topic=4204).
 
 
 ## More information
