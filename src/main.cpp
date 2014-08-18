@@ -1,5 +1,6 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
+﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2013 The Bitcoin developers
+// Copyright (c) 2014 The Polcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,10 +19,6 @@
 using namespace std;
 using namespace boost;
 
-//
-// Global state
-//
-
 CCriticalSection cs_setpwalletRegistered;
 set<CWallet*> setpwalletRegistered;
 
@@ -30,7 +27,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x5582ea402d65bd7445949da32c96217ae98d128a1afb37c78afd79df3d23b105");
+uint256 hashGenesisBlock("0x5b0d84e63fa3dae7bb2ad21386ec5f6d146b70414bd825857636f91f4257d135"); //genesis hash wg wersji 1.4
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 32);
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -38,7 +35,7 @@ uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
-set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
+set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid;
 int64 nTimeBestReceived = 0;
 int nScriptCheckThreads = 0;
 bool fImporting = false;
@@ -63,24 +60,13 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Bitcoin Signed Message:\n";
+const string strMessageMagic = "Polcoin Signed Message:\n";
 
 double dHashesPerSec = 0.0;
 int64 nHPSTimerStart = 0;
-
-// Settings
 int64 nTransactionFee = 0;
 
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// dispatching functions
-//
-
-// These functions dispatch to one or all registered wallets
-
-
+// register wallets
 void RegisterWallet(CWallet* pwalletIn)
 {
     {
@@ -89,6 +75,7 @@ void RegisterWallet(CWallet* pwalletIn)
     }
 }
 
+// unregister wallets
 void UnregisterWallet(CWallet* pwalletIn)
 {
     {
@@ -155,12 +142,6 @@ void static ResendWalletTransactions()
         pwallet->ResendWalletTransactions();
 }
 
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // CCoinsView implementations
@@ -173,8 +154,6 @@ CBlockIndex *CCoinsView::GetBestBlock() { return NULL; }
 bool CCoinsView::SetBestBlock(CBlockIndex *pindex) { return false; }
 bool CCoinsView::BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex) { return false; }
 bool CCoinsView::GetStats(CCoinsStats &stats) { return false; }
-
-
 CCoinsViewBacked::CCoinsViewBacked(CCoinsView &viewIn) : base(&viewIn) { }
 bool CCoinsViewBacked::GetCoins(const uint256 &txid, CCoins &coins) { return base->GetCoins(txid, coins); }
 bool CCoinsViewBacked::SetCoins(const uint256 &txid, const CCoins &coins) { return base->SetCoins(txid, coins); }
@@ -340,11 +319,6 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
     }
     return nEvicted;
 }
-
-
-
-
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -540,12 +514,6 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
     return pindexBest->nHeight - pindex->nHeight + 1;
 }
-
-
-
-
-
-
 
 bool CTransaction::CheckTransaction(CValidationState &state) const
 {
@@ -1025,11 +993,6 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock
     return false;
 }
 
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // CBlock and CBlockIndex
@@ -1072,7 +1035,12 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {
-    int64 nSubsidy = 50 * COIN;
+	int64 nSubsidy = 1 * COIN;
+	if(nHeight == 1)
+	nSubsidy = 8500000 * COIN;
+	else
+	nSubsidy = 50 * COIN;
+    
 
     // Subsidy is cut in half every 2100000 blocks, which will occur approximately every 4 years
     nSubsidy >>= (nHeight / 2100000);
@@ -1083,8 +1051,6 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 int64 nTargetTimespan = 0.25*24*60*60;
 int64 nTargetSpacing = 60;
 int64 nInterval = nTargetTimespan / nTargetSpacing;
-
-
 
 //
 // minimum amount of work that could possibly be required nTime after
@@ -1305,16 +1271,6 @@ void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
         nBits = GetNextWorkRequired(pindexPrev, this);
 }
 
-
-
-
-
-
-
-
-
-
-
 const CTxOut &CTransaction::GetOutputFor(const CTxIn& input, CCoinsViewCache& view)
 {
     const CCoins &coins = view.GetCoins(input.prevout.hash);
@@ -1477,9 +1433,6 @@ bool CTransaction::CheckInputs(CValidationState &state, CCoinsViewCache &inputs,
 
     return true;
 }
-
-
-
 
 bool CBlock::DisconnectBlock(CValidationState &state, CBlockIndex *pindex, CCoinsViewCache &view, bool *pfClean)
 {
@@ -2333,13 +2286,6 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     return true;
 }
 
-
-
-
-
-
-
-
 CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
 {
     header = block.GetBlockHeader();
@@ -2365,13 +2311,6 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
 
     txn = CPartialMerkleTree(vHashes, vMatch);
 }
-
-
-
-
-
-
-
 
 uint256 CPartialMerkleTree::CalcHash(int height, unsigned int pos, const std::vector<uint256> &vTxid) {
     if (height == 0) {
@@ -2486,12 +2425,6 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
         return 0;
     return hashMerkleRoot;
 }
-
-
-
-
-
-
 
 bool AbortNode(const std::string &strMessage) {
     strMiscWarning = strMessage;
@@ -2724,13 +2657,13 @@ bool LoadBlockIndex()
 {
     if (fTestNet)
     {
+    	//Testnet
         pchMessageStart[0] = 0x0b;
         pchMessageStart[1] = 0x11;
         pchMessageStart[2] = 0x09;
         pchMessageStart[3] = 0x07;
         hashGenesisBlock = uint256("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943");
     }
-
     //
     // Load block index from databases
     //
@@ -2742,13 +2675,13 @@ bool LoadBlockIndex()
 
 void SetGenesisHash() {
         // Genesis block
-        const char* pszTimestamp = "New PLC born";
+        const char* pszTimestamp = "Birth of a new PLC"; //const char* pszTimestamp = "New PLC born";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0xa6736083 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
         txNew.vout[0].nValue = 50;
-        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG;
+        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Paweł Drobek 20140806
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
@@ -2776,13 +2709,13 @@ bool InitBlockIndex() {
     // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
     if (!fReindex) {
         // Genesis block
-        const char* pszTimestamp = "New PLC born";
+        const char* pszTimestamp = "Birth of a new PLC"; //const char* pszTimestamp = "New PLC born";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0xa6736083 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)); //+1 do magic
         txNew.vout[0].nValue = 50;
-        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Pawe� Drobek 20140806
+        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Paweł Drobek 20140806
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
@@ -2801,10 +2734,10 @@ bool InitBlockIndex() {
         //// debug print
         uint256 hash = block.GetHash();
         hashGenesisBlock = hash;
-        printf("%s\n", hash.ToString().c_str());
-        printf("%s\n", hashGenesisBlock.ToString().c_str());
-        printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0xf64e4530953e6ad311702437738a6fe25d27af34a218d2056ba6c206e63450b4"));
+        //printf("%s\n", hash.ToString().c_str());
+        //printf("%s\n", hashGenesisBlock.ToString().c_str());
+        //printf("%s\n", block.hashMerkleRoot.ToString().c_str());
+        assert(block.hashMerkleRoot == uint256("0xea53d083b41896c5e5f6ca39223bd3a70a900868397a604c9d2f607c790c535d"));
         block.print();
         assert(hash == hashGenesisBlock);
 
@@ -2826,8 +2759,6 @@ bool InitBlockIndex() {
 
     return true;
 }
-
-
 
 void PrintBlockTree()
 {
@@ -2971,20 +2902,6 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
     return nLoaded > 0;
 }
 
-
-
-
-
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// CAlert
-//
-
 extern map<uint256, CAlert> mapAlerts;
 extern CCriticalSection cs_mapAlerts;
 
@@ -3036,19 +2953,6 @@ string GetWarnings(string strFor)
     return "error";
 }
 
-
-
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// Messages
-//
-
-
 bool static AlreadyHave(const CInv& inv)
 {
     switch (inv.type)
@@ -3070,9 +2974,6 @@ bool static AlreadyHave(const CInv& inv)
     // Don't know what it is, just say we already got one
     return true;
 }
-
-
-
 
 // The message start string is designed to be unlikely to occur in normal data.
 // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -3201,10 +3102,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         printf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
-
-
-
-
 
     if (strCommand == "version")
     {
@@ -4070,19 +3967,6 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     }
     return true;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 //
