@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Qt4 bitcoin GUI.
  *
  * W.J. van der Laan 2011-2012
