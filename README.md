@@ -18,7 +18,7 @@ Maximum Coins: 210.000.000
 
 Network port: 9338
 
-RPC port: 9338
+RPC port: 9337
 
 Retarget every 360 blocks (6 hours)
 
