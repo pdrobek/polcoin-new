@@ -1191,7 +1191,8 @@ void MapPort(bool)
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strMainNetDNSSeed[][2] = {
-    {"bluematt.me", "coingen-seed.bluematt.me"},
+    {"polcoin.pl", "polcoin.pl"},
+    {"polcoin.one.pl", "polcoin.one.pl"}
     {NULL, NULL}
 };
 
