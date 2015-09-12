@@ -26,10 +26,11 @@ Current main version: 1.4.0 (code name: new epoch)
 
 ## Community
 
-You can find more information about Polcoin on [polcoin.one.pl](http://polcoin.one.pl/).
+You can find more information about Polcoin on [polcoin.pl](http://polcoin.pl/).
 
-If you have any trouble write on [Polmine forum](https://forum.polmine.pl/index.php?topic=4204).
+If you have any trouble write on [Polcoine official forum](http://forum.polcoin.pl).
 
+We are also on [Bitcointalk.org](https://bitcointalk.org/index.php?topic=945549.0)
 
 ## More information
 
