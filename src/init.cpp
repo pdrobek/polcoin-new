@@ -340,6 +340,7 @@ std::string HelpMessage()
 #ifdef WIN32
         "  -printtodebugger       " + _("Send trace/debug info to debugger") + "\n" +
 #endif
+        "  -testnet               " + _("Use the test network") + "\n" +
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
         "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 9337)") + "\n" +
@@ -493,7 +494,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 #endif
 
     // ********************************************************* Step 2: parameter interactions
-    fTestNet = false;
+    fTestNet = GetBoolArg("-testnet");//false;
     SetGenesisHash();
 
     if (mapArgs.count("-bind")) {

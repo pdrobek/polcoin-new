@@ -67,21 +67,21 @@ namespace Checkpoints
     {
         if (!GetBoolArg("-checkpoints", true))
             return true;
-		return true;
+		//return true;
 
         const MapCheckpoints& checkpoints = *Checkpoints().mapCheckpoints;
 
         MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
         if (i == checkpoints.end()) return true;
         return hash == i->second;
-//return true;
+        return true;
     }
 
     // Guess how far we are in the verification process at the given block index
     double GuessVerificationProgress(CBlockIndex *pindex) {
         if (pindex==NULL)
             return 0.0;
-		return 0.0;
+		//return 0.0;
 
         int64 nNow = time(NULL);
 
@@ -111,7 +111,7 @@ namespace Checkpoints
 
     int GetTotalBlocksEstimate()
     {
-		return 0;
+		//return 0;
         if (!GetBoolArg("-checkpoints", true))
             return 0;
 
@@ -135,7 +135,6 @@ namespace Checkpoints
             std::map<uint256, CBlockIndex*>::const_iterator t = mapBlockIndex.find(hash);
             if (t != mapBlockIndex.end())
                 return t->second;
-//return NULL;
         }
         return NULL;
     }
