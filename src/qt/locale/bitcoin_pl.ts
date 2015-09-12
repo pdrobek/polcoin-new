@@ -440,7 +440,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+6"/>
         <source>&amp;Debug window</source>
-        <translation>&amp;Okno debudowania</translation>
+        <translation>&amp;Okno debugowania</translation>
     </message>
     <message>
         <location line="+1"/>
