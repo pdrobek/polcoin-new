@@ -8,10 +8,10 @@
 // Name of client reported in the 'version' message. Report the same name
 // for both polcoind and bitcoin-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
-const std::string CLIENT_NAME("New Epoch");
+const std::string CLIENT_NAME("Troll Hammer ");
 
 // Client version number
-#define CLIENT_VERSION_SUFFIX   "-stable by pdrobek"
+#define CLIENT_VERSION_SUFFIX   " by pdrobek (DGW)"
 
 
 // The following part of the code determines the CLIENT_BUILD variable.
