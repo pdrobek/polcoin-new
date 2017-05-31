@@ -28,6 +28,7 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0x5b0d84e63fa3dae7bb2ad21386ec5f6d146b70414bd825857636f91f4257d135"); //genesis hash wg wersji 1.4
+//uint256 hashGenesisBlock("0x0000000063fff25f61d72ff76bd7f0e17199432aaa9b944b586f153bd8834bce"); //genesis!
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 32);
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -1077,7 +1078,7 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     return bnResult.GetCompact();
 }
 
-unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+unsigned int static GetNextWorkRequired_V1(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
     unsigned int nProofOfWorkLimit = bnProofOfWorkLimit.GetCompact();
 
@@ -1138,6 +1139,169 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     printf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
 
     return bnNew.GetCompact();
+}
+
+unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const CBlockHeader *pblock, uint64 TargetBlocksSpacingSeconds, uint64 PastBlocksMin, uint64 PastBlocksMax) {
+/* current difficulty formula, megacoin - kimoto gravity well */
+const CBlockIndex *BlockLastSolved = pindexLast;
+const CBlockIndex *BlockReading = pindexLast;
+const CBlockHeader *BlockCreating = pblock;
+BlockCreating = BlockCreating;
+uint64 PastBlocksMass = 0;
+int64 PastRateActualSeconds = 0;
+int64 PastRateTargetSeconds = 0;
+double	PastRateAdjustmentRatio = double(1);
+CBigNum PastDifficultyAverage;
+CBigNum PastDifficultyAveragePrev;
+double	EventHorizonDeviation;
+double	EventHorizonDeviationFast;
+double	EventHorizonDeviationSlow;
+if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64)BlockLastSolved->nHeight < PastBlocksMin) { return bnProofOfWorkLimit.GetCompact(); }
+for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
+if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+PastBlocksMass++;
+if (i == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+else	{ PastDifficultyAverage = ((CBigNum().SetCompact(BlockReading->nBits) - PastDifficultyAveragePrev) / i) + PastDifficultyAveragePrev; }
+PastDifficultyAveragePrev = PastDifficultyAverage;
+PastRateActualSeconds = BlockLastSolved->GetBlockTime() - BlockReading->GetBlockTime();
+PastRateTargetSeconds = TargetBlocksSpacingSeconds * PastBlocksMass;
+PastRateAdjustmentRatio = double(1);
+if (PastRateActualSeconds < 0) { PastRateActualSeconds = 0; }
+if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
+PastRateAdjustmentRatio = double(PastRateTargetSeconds) / double(PastRateActualSeconds);
+}
+EventHorizonDeviation = 1 + (0.7084 * pow((double(PastBlocksMass)/double(144)), -1.228));
+EventHorizonDeviationFast = EventHorizonDeviation;
+EventHorizonDeviationSlow = 1 / EventHorizonDeviation;
+if (PastBlocksMass >= PastBlocksMin) {
+if ((PastRateAdjustmentRatio <= EventHorizonDeviationSlow) || (PastRateAdjustmentRatio >= EventHorizonDeviationFast)) { assert(BlockReading); break; }
+}
+if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+BlockReading = BlockReading->pprev;
+}
+CBigNum bnNew(PastDifficultyAverage);
+if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
+bnNew *= PastRateActualSeconds;
+bnNew /= PastRateTargetSeconds;
+}
+if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; }
+/// debug print
+printf("Difficulty Retarget - Kimoto Gravity Well\n");
+printf("PastRateAdjustmentRatio = %g\n", PastRateAdjustmentRatio);
+printf("Before: %08x %s\n", BlockLastSolved->nBits, CBigNum().SetCompact(BlockLastSolved->nBits).getuint256().ToString().c_str());
+printf("After: %08x %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
+return bnNew.GetCompact();
+}
+
+unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast, const CBlockHeader *pblock) {
+    /* current difficulty formula, darkcoin - DarkGravity v3, written by Evan Duffield - evan@darkcoin.io */
+    const CBlockIndex *BlockLastSolved = pindexLast;
+    const CBlockIndex *BlockReading = pindexLast;
+    const CBlockHeader *BlockCreating = pblock;
+    BlockCreating = BlockCreating;
+    int64 nActualTimespan = 0;
+    int64 LastBlockTime = 0;
+    int64 PastBlocksMin = 24;
+    int64 PastBlocksMax = 24;
+    int64 CountBlocks = 0;
+    CBigNum PastDifficultyAverage;
+    CBigNum PastDifficultyAveragePrev;
+
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+        // This is the first block or the height is < PastBlocksMin
+        // Return minimal required work. (1e0fffff)
+        return bnProofOfWorkLimit.GetCompact(); 
+    }
+    
+    // loop over the past n blocks, where n == PastBlocksMax
+    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
+        if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
+        CountBlocks++;
+
+        // Calculate average difficulty based on the blocks we iterate over in this for loop
+        if(CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
+            else { PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks)+(CBigNum().SetCompact(BlockReading->nBits))) / (CountBlocks+1); }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
+        }
+
+        // If this is the second iteration (LastBlockTime was set)
+        if(LastBlockTime > 0){
+            // Calculate time difference between previous block and current block
+            int64 Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            // Increment the actual timespan
+            nActualTimespan += Diff;
+        }
+        // Set LasBlockTime to the block time for the block in current iteration
+        LastBlockTime = BlockReading->GetBlockTime();      
+
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = BlockReading->pprev;
+    }
+    
+    // bnNew is the difficulty
+    CBigNum bnNew(PastDifficultyAverage);
+
+    // nTargetTimespan is the time that the CountBlocks should have taken to be generated.
+    int64 nTargetTimespan = CountBlocks*nTargetSpacing;
+
+    // Limit the re-adjustment to 3x or 0.33x
+    // We don't want to increase/decrease diff too much.
+    if (nActualTimespan < nTargetTimespan/3)
+        nActualTimespan = nTargetTimespan/3;
+    if (nActualTimespan > nTargetTimespan*3)
+        nActualTimespan = nTargetTimespan*3;
+
+    // Calculate the new difficulty based on actual and target timespan.
+    bnNew *= nActualTimespan;
+    bnNew /= nTargetTimespan;
+
+    // If calculated difficulty is lower than the minimal diff, set the new difficulty to be the minimal diff.
+    if (bnNew > bnProofOfWorkLimit){
+        bnNew = bnProofOfWorkLimit;
+    }
+    
+    // Some logging.
+    // TODO: only display these log messages for a certain debug option.
+    printf("Difficulty Retarget - Dark Gravity Wave 3\n");
+    printf("Before: %08x %s\n", BlockLastSolved->nBits, CBigNum().SetCompact(BlockLastSolved->nBits).getuint256().ToString().c_str());
+    printf("After: %08x %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
+
+    // Return the new diff.
+    return bnNew.GetCompact();
+}
+
+unsigned int static GetNextWorkRequired_V2(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+{
+static const int64 BlocksTargetSpacing = 60;
+unsigned int	TimeDaySeconds = 60 * 60 * 24;
+int64 PastSecondsMin = TimeDaySeconds * 0.25;
+int64 PastSecondsMax = TimeDaySeconds * 7;
+uint64 PastBlocksMin = PastSecondsMin / BlocksTargetSpacing;
+uint64 PastBlocksMax = PastSecondsMax / BlocksTargetSpacing;
+return KimotoGravityWell(pindexLast, pblock, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
+}
+
+unsigned int static GetNextWorkRequired_V3(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+{
+return DarkGravityWave3(pindexLast, pblock);
+}
+
+unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+{
+int DiffMode = 1;
+if(fTestNet){
+if (pindexLast->nHeight+1 <=2) { DiffMode = 1; }
+else { DiffMode = 2;}
+if	(DiffMode == 1) { return GetNextWorkRequired_V1(pindexLast, pblock); }
+else if	(DiffMode == 2) { return GetNextWorkRequired_V3(pindexLast, pblock); }
+}
+if(!fTestNet){
+	if(pindexLast->nHeight >= 1092600)
+		{ return GetNextWorkRequired_V3(pindexLast, pblock); }
+	else
+		{ return GetNextWorkRequired_V1(pindexLast, pblock);}
+}
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
@@ -2657,12 +2821,20 @@ bool LoadBlockIndex()
 {
     if (fTestNet)
     {
-    	//Testnet
-        pchMessageStart[0] = 0x0b;
-        pchMessageStart[1] = 0x11;
-        pchMessageStart[2] = 0x09;
-        pchMessageStart[3] = 0x07;
-        hashGenesisBlock = uint256("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943");
+    //Testnet +1 mainnet
+    //	
+    //	2017-05-11 11:26:08 CBlock(hash=00000000cb782a751c1a650ff0762aba6c00d59d72c7719e590ec15ec54036e7, ver=1, hashPrevBlock=0000000000000000000000000000000000000000000000000000000000000000, hashMerkleRoot=80b3de760cb29f2737bc2003c14f91f704f664934e2c806b7859bed4b2d3d148, nTime=1407311815, nBits=1d00ffff, nNonce=1311545610, vtx=1)
+    //    2017-05-11 11:26:08   CTransaction(hash=80b3de760cb29f2737bc2003c14f91f704f664934e2c806b7859bed4b2d3d148, ver=1, vin.size=1, vout.size=1, nLockTime=0)
+    //CTxIn(COutPoint(0000000000000000000000000000000000000000000000000000000000000000, 4294967295), coinbase 05836073a60001041a4269727468206f662061206e657720504c4320746573746e6574)
+    //CTxOut(nValue=0.00000050, scriptPubKey=506177656c2044726f62656b203230)
+    //  vMerkleTree: 80b3de760cb29f2737bc2003c14f91f704f664934e2c806b7859bed4b2d3d148
+    	
+        pchMessageStart[0] = 0xa7;
+        pchMessageStart[1] = 0x74;
+        pchMessageStart[2] = 0x61;
+        pchMessageStart[3] = 0x84;
+        hashGenesisBlock = uint256("0x00000000cb782a751c1a650ff0762aba6c00d59d72c7719e590ec15ec54036e7");
+        const char* pszTimestamp = "Birth of a new PLC testnet";
     }
     //
     // Load block index from databases
@@ -2674,8 +2846,9 @@ bool LoadBlockIndex()
 }
 
 void SetGenesisHash() {
-        // Genesis block
-        const char* pszTimestamp = "Birth of a new PLC"; //const char* pszTimestamp = "New PLC born";
+
+        if(!fTestNet){
+        const char* pszTimestamp = "Birth of a new PLC";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
@@ -2690,10 +2863,30 @@ void SetGenesisHash() {
         block.nTime    = 1407311815;
         block.nBits    = 0x1d00ffff;
         block.nNonce   = 0;
-
-        //// debug print
-        uint256 hash = block.GetHash();
-        hashGenesisBlock = hash;
+        block.print();
+        //uint256 hash = block.GetHash();
+        //hashGenesisBlock = hash;
+        }
+        if(fTestNet){
+        const char* pszTimestamp = "Birth of a new PLC testnet";
+        CTransaction txNew;
+        txNew.vin.resize(1);
+        txNew.vout.resize(1);
+        txNew.vin[0].scriptSig = CScript() << 0xa6736083 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+        txNew.vout[0].nValue = 50;
+        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Paweł Drobek 20140806
+        CBlock block;
+        block.vtx.push_back(txNew);
+        block.hashPrevBlock = 0;
+        block.hashMerkleRoot = block.BuildMerkleTree();
+        block.nVersion = 1;
+        block.nTime    = 1407311815;
+        block.nBits    = 0x1d00ffff;
+        block.nNonce   = 1311545610;
+        block.print();
+        //uint256 hash = block.GetHash();
+        //hashGenesisBlock = hash;
+        }
 }
 
 bool InitBlockIndex() {
@@ -2706,17 +2899,35 @@ bool InitBlockIndex() {
     pblocktree->WriteFlag("txindex", fTxIndex);
     printf("Initializing databases...\n");
 
-    // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
     if (!fReindex) {
+    	CBlock block;
         // Genesis block
-        const char* pszTimestamp = "Birth of a new PLC"; //const char* pszTimestamp = "New PLC born";
+        if(fTestNet)
+        {	
+        const char* pszTimestamp = "Birth of a new PLC testnet";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0xa6736083 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)); //+1 do magic
         txNew.vout[0].nValue = 50;
         txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Paweł Drobek 20140806
-        CBlock block;
+        block.vtx.push_back(txNew);
+        block.hashPrevBlock = 0;
+        block.hashMerkleRoot = block.BuildMerkleTree();
+        block.nVersion = 1;
+        block.nTime    = 1407311815;
+        block.nBits    = 0x1d00ffff;
+        block.nNonce   = 1311545610;
+        }
+        if(!fTestNet)
+        {	
+        const char* pszTimestamp = "Birth of a new PLC";
+        CTransaction txNew;
+        txNew.vin.resize(1);
+        txNew.vout.resize(1);
+        txNew.vin[0].scriptSig = CScript() << 0xa6736083 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)); //+1 do magic
+        txNew.vout[0].nValue = 50;
+        txNew.vout[0].scriptPubKey = CScript() << ParseHex("506177656c2044726f62656b203230313430383036") << OP_CHECKSIG; //Paweł Drobek 20140806
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
@@ -2724,23 +2935,21 @@ bool InitBlockIndex() {
         block.nTime    = 1407311815;
         block.nBits    = 0x1d00ffff;
         block.nNonce   = 0;
-
-        if (fTestNet)
+        }
+        /*
+        CBigNum bnTarget;
+        bnTarget.SetCompact(block.nBits);
+        while (block.GetHash() > bnTarget.getuint256())
         {
-            block.nTime    = 1407311815;
-            block.nNonce   = 0;
+            if (block.nNonce % 1048576 == 0)
+            printf("n=%dM hash=%s\n", block.nNonce / 1048576,
+            block.GetHash().ToString().c_str());
+            block.nNonce++;
         }
 
-        //// debug print
-        uint256 hash = block.GetHash();
-        hashGenesisBlock = hash;
-        //printf("%s\n", hash.ToString().c_str());
-        //printf("%s\n", hashGenesisBlock.ToString().c_str());
-        //printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0xea53d083b41896c5e5f6ca39223bd3a70a900868397a604c9d2f607c790c535d"));
+        printf("Genesis Block Found:\n");
         block.print();
-        assert(hash == hashGenesisBlock);
-
+        */
         // Start new block file
         try {
             unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
@@ -2978,6 +3187,7 @@ bool static AlreadyHave(const CInv& inv)
 // The message start string is designed to be unlikely to occur in normal data.
 // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
 // a large 4-byte int at any alignment.
+//unsigned char pchMessageStart[4] = { 0xa7, 0x74, 0x61, 0x84 };
 unsigned char pchMessageStart[4] = { 0xa6, 0x73, 0x60, 0x83 };
 
 
