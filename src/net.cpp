@@ -1193,20 +1193,18 @@ void MapPort(bool)
 static const char *strMainNetDNSSeed[][2] = {
     {"seed.polcoin.pl", "dnsseed.polcoin.pl"},
     {"polcoin.pl", "polcoin.pl"},
-    {"polcoin.ddns.net","polcoin.ddns.net"},
-    {"polcoin.no-ip.org","polcoin.no-ip.org"},
     {"polcoin.one.pl","polcoin.one.pl"},
-    {"pdrobek.no-ip.org","pdrobek.no-ip.org"},
+    {"pdrobek.duckdns.org","pdrobek.duckdns.org"},
+    {"polcoin.duckdns.org","polcoin.duckdns.org"},
     {NULL, NULL}
 };
 
 static const char *strTestNetDNSSeed[][2] = {
     {"seed.polcoin.pl", "dnsseed.polcoin.pl"},
     {"polcoin.pl", "polcoin.pl"},
-    {"polcoin.ddns.net","polcoin.ddns.net"},
-    {"polcoin.no-ip.org","polcoin.no-ip.org"},
     {"polcoin.one.pl","polcoin.one.pl"},
-    {"pdrobek.no-ip.org","pdrobek.no-ip.org"},
+    {"pdrobek.duckdns.org","pdrobek.duckdns.org"},
+    {"polcoin.duckdns.org","polcoin.duckdns.org"},
     {NULL, NULL}
 };
 
