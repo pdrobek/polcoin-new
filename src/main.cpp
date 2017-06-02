@@ -1219,26 +1219,22 @@ unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast, const CBlock
     return bnNew.GetCompact();
 }
 
-unsigned int static GetNextWorkRequired_V3(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
-{
-return DarkGravityWave3(pindexLast, pblock);
-}
-
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
-int DiffMode = 1;
-if(fTestNet){
-if (pindexLast->nHeight+1 <=2) { DiffMode = 1; }
-else { DiffMode = 2;}
-if	(DiffMode == 1) { return GetNextWorkRequired_V1(pindexLast, pblock); }
-else if	(DiffMode == 2) { return GetNextWorkRequired_V3(pindexLast, pblock); }
-}
-if(!fTestNet){
-	if(pindexLast->nHeight >= 1092600)
-		{ return GetNextWorkRequired_V3(pindexLast, pblock); }
-	else
-		{ return GetNextWorkRequired_V1(pindexLast, pblock);}
-}
+	if(fTestNet){
+		if (pindexLast->nHeight+1 <=2) 
+		{ 
+			return GetNextWorkRequired_V1(pindexLast, pblock); 
+		}
+		return DarkGravityWave3(pindexLast, pblock);
+	}
+	else{
+		if(pindexLast->nHeight >= 1092600)
+		{ 
+			return DarkGravityWave3(pindexLast, pblock); 
+		}
+		return GetNextWorkRequired_V1(pindexLast, pblock);
+	}
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
