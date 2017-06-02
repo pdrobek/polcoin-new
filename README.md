@@ -20,9 +20,13 @@ Network port: 9338
 
 RPC port: 9337
 
-Retarget every 360 blocks (6 hours)
+Test Network port: 19338
 
-Current main version: 1.4.0 (code name: new epoch)
+Test RPC port: 19337
+
+Retarget every 1 block
+
+Current main version: 1.6.0.1 (code name: Troll Hammer)
 
 ## Community
 
